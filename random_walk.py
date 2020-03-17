@@ -20,9 +20,11 @@ from tqdm import trange, tqdm
 # tqdm -- fajna biblioteka do wizualizacji postępu pętli
 # os -- biblioteka z funkcjami systemowym
 
+
 class Simul(object):
-    def __init__(self, no_of_walkers=8, no_of_steps=400, steps_per_frame = 4,
-               export_frames = True, export_trajectory = True):
+    def __init__(self, no_of_walkers=10, no_of_steps=400, steps_per_frame = 4,
+                 export_frames = True, export_trajectory = True, 
+                 export_dist = True):
         ## zmienne, które się nie zmieniają w trakcie programu
         self.walkers = [Walker() for n in range(no_of_walkers)]
         self.max_step = no_of_steps
@@ -30,6 +32,7 @@ class Simul(object):
         # export parameters
         self.trajectory = export_trajectory
         self.frames = export_frames
+        self.dist = export_dist
 
         ## zmienne, których wartości będą aktualizowane
         self.step = 0
@@ -53,6 +56,34 @@ class Simul(object):
             self.initiate_frame_print()
         # główny program
         self.main()
+        if self.trajectory:
+            self.save_frame('trajectory.png') 
+        if self.dist:
+            self.calc_dist()
+
+    def calc_dist(self):
+        steps, walkers = np.shape(self.x)
+        time = np.arange(steps)
+        dist_theory = np.sqrt(time)
+        # metryka kartezjańska
+        dist      = np.sqrt(np.square(self.x) + np.square(self.y))
+        dist_mean = np.mean(dist, axis = 1)
+        plt.tick_params(axis = 'both', which = 'both', direction='in',
+                        right=True, top=True)
+        plt.xlim(0,steps)
+        plt.xlabel('No of steps')
+        plt.ylabel('Distance')
+        for walker,i in zip(self.walkers, range(len(self.walkers))):
+            plt.plot(time, dist, linestyle='dashed', linewidth=1)
+        plt.plot(time, dist_mean, linestyle='dashed', color='black', 
+                 linewidth=2, label='RW mean')
+        plt.plot(time, dist_theory, color='black', linewidth=3, 
+                 label='RW theory')
+        plt.legend()
+        plt.title('Random walk')
+        plt.savefig('distance.png', dpi=300)
+        # zamykamy na koniec, by nie zawalać pamięci
+        plt.close()   
 
 
     def main(self):
@@ -73,8 +104,6 @@ class Simul(object):
             if self.frames and t%self.steps_per_frame == 0:
                 self.save_frame('frames/f_{:05d}.png'.format(self.frame))
                 self.frame += 1
-        if self.trajectory:
-            self.save_frame('trajectory.png') 
 
 
     def initiate_frame_print(self):
@@ -95,12 +124,12 @@ class Simul(object):
         plt.gca().set_aspect('equal', adjustable='box')
         # średni dystans pokonany przez spacer losowy jest
         # proporcjonalny do pierwiastka liczby kroków
-        box_sidelength = int(np.sqrt(self.max_step))*4
+        box_sidelength = int(np.sqrt(self.max_step))*5
         plt.xlim(-box_sidelength/2, box_sidelength/2)
         plt.ylim(-box_sidelength/2, box_sidelength/2)
         for walker,i in zip(self.walkers, range(len(self.walkers))):
             plt.scatter(walker.x, walker.y)
-            plt.plot(self.x[:self.step,i], self.y[:self.step,i])
+            plt.plot(self.x[:self.step,i], self.y[:self.step,i], linewidth=1)
         # bbox_inches='tight', pand_inches=0 -- zostawiają minimalną
         # ilość przestrzeni poza samym wykresem na generowanym obrazku
         # dpi -- jakość obrazka
